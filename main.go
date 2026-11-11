@@ -7,12 +7,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/Lazzar19/ScoutAI/internal/config"
 	"github.com/Lazzar19/ScoutAI/internal/health"
 	"github.com/Lazzar19/ScoutAI/internal/store"
+	"github.com/Lazzar19/ScoutAI/internal/worker"
 )
 
 func main() {
@@ -43,6 +45,34 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		return err
 	}
 	defer pool.Close()
+
+	workerCtx, cancelWorkers := context.WithCancel(ctx)
+	var wg sync.WaitGroup
+	logger.Info("starting queue workers", "count", cfg.WorkerCount)
+	for i := range cfg.WorkerCount {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			id := worker.ID(i)
+			err := worker.Worker{
+				Queue:       pool,
+				Handler:     worker.FakeHandler(logger),
+				ID:          id,
+				TaskTimeout: cfg.TaskTimeout,
+				MaxAttempts: cfg.TaskMaxAttempts,
+				Poll:        cfg.WorkerPoll,
+				RetryBase:   cfg.TaskRetryBase,
+				Logger:      logger,
+			}.Run(workerCtx)
+			if err != nil {
+				logger.Error("worker stopped", "worker", id, "err", err)
+			}
+		}(i)
+	}
+	defer func() {
+		cancelWorkers()
+		wg.Wait()
+	}()
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
