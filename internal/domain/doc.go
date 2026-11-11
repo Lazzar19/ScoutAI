@@ -1,2 +1,3 @@
-// Package domain will hold the opportunity model. It is intentionally empty until the schema milestone.
+// Package domain holds the opportunity model shared by ingestion, matching, and notifications.
+// Unknown values stay nil or empty. Callers must not substitute the current time for a missing publication date.
 package domain
