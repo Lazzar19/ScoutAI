@@ -82,3 +82,28 @@ func (p *Pool) GetProfile(ctx context.Context, id string) (domain.CandidateProfi
 	}
 	return profile, nil
 }
+
+// GetActiveProfile returns the profile used for new match tasks.
+func (p *Pool) GetActiveProfile(ctx context.Context) (domain.CandidateProfile, error) {
+	var profile domain.CandidateProfile
+	var payload []byte
+	err := p.pool.QueryRow(ctx, `
+		SELECT id, name, profile_data, profile_version, active
+		FROM candidate_profiles
+		WHERE active
+		ORDER BY updated_at DESC
+		LIMIT 1`).Scan(
+		&profile.ID,
+		&profile.Name,
+		&payload,
+		&profile.Version,
+		&profile.Active,
+	)
+	if err != nil {
+		return domain.CandidateProfile{}, mapReadErr("get active profile", err)
+	}
+	if err := decodeProfile(payload, &profile); err != nil {
+		return domain.CandidateProfile{}, fmt.Errorf("get active profile: %w", err)
+	}
+	return profile, nil
+}
