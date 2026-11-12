@@ -50,6 +50,22 @@ func (p *Pool) GetNotification(ctx context.Context, id string) (domain.Notificat
 	return notification, nil
 }
 
+// FindNotification reads the outbox row for one job, recipient, and type.
+func (p *Pool) FindNotification(ctx context.Context, jobID, recipient string, kind domain.DecisionKind) (domain.Notification, error) {
+	row := p.pool.QueryRow(ctx, `
+		SELECT id, job_id, evaluation_id, recipient, notification_type, channel, status,
+		       external_message_id, sent_at, error
+		FROM notifications
+		WHERE job_id = $1::uuid AND recipient = $2 AND notification_type = $3`,
+		jobID, recipient, string(kind),
+	)
+	notification, err := scanNotification(row)
+	if err != nil {
+		return domain.Notification{}, mapReadErr("find notification", err)
+	}
+	return notification, nil
+}
+
 func scanNotification(row rowScanner) (domain.Notification, error) {
 	var notification domain.Notification
 	var kind, channel, status string

@@ -107,3 +107,32 @@ func (p *Pool) GetActiveProfile(ctx context.Context) (domain.CandidateProfile, e
 	}
 	return profile, nil
 }
+
+// GetProfileByVersion reads the profile a match task named.
+// An in-place edit bumps the version, so the previous version is no longer this row.
+func (p *Pool) GetProfileByVersion(ctx context.Context, version int) (domain.CandidateProfile, error) {
+	if version < 1 {
+		return domain.CandidateProfile{}, fmt.Errorf("get profile version: version must be positive")
+	}
+	var profile domain.CandidateProfile
+	var payload []byte
+	err := p.pool.QueryRow(ctx, `
+		SELECT id, name, profile_data, profile_version, active
+		FROM candidate_profiles
+		WHERE profile_version = $1
+		ORDER BY active DESC, updated_at DESC
+		LIMIT 1`, version).Scan(
+		&profile.ID,
+		&profile.Name,
+		&payload,
+		&profile.Version,
+		&profile.Active,
+	)
+	if err != nil {
+		return domain.CandidateProfile{}, mapReadErr("get profile version", err)
+	}
+	if err := decodeProfile(payload, &profile); err != nil {
+		return domain.CandidateProfile{}, fmt.Errorf("get profile version: %w", err)
+	}
+	return profile, nil
+}
