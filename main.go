@@ -14,6 +14,7 @@ import (
 	"github.com/Lazzar19/ScoutAI/internal/config"
 	"github.com/Lazzar19/ScoutAI/internal/domain"
 	"github.com/Lazzar19/ScoutAI/internal/health"
+	"github.com/Lazzar19/ScoutAI/internal/match"
 	"github.com/Lazzar19/ScoutAI/internal/pipeline"
 	"github.com/Lazzar19/ScoutAI/internal/schedule"
 	"github.com/Lazzar19/ScoutAI/internal/source"
@@ -73,6 +74,16 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	}()
 
 	boards := source.Greenhouse{BaseURL: cfg.GreenhouseBaseURL}
+	rules := match.Rules{
+		Weights: match.Weights{
+			Role:       cfg.MatchWeightRole,
+			Skills:     cfg.MatchWeightSkills,
+			Experience: cfg.MatchWeightExperience,
+			Location:   cfg.MatchWeightLocation,
+			Company:    cfg.MatchWeightCompany,
+		},
+		Threshold: cfg.MatchThreshold,
+	}
 	logger.Info("starting queue workers", "count", cfg.WorkerCount)
 	for i := range cfg.WorkerCount {
 		wg.Add(1)
@@ -81,7 +92,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 			id := worker.ID(i)
 			err := worker.Worker{
 				Queue:       pool,
-				Handler:     pipeline.Handler(pool, boards, logger),
+				Handler:     pipeline.Handler(pool, boards, rules, cfg.NotifyRecipient, logger),
 				ID:          id,
 				TaskTimeout: cfg.TaskTimeout,
 				MaxAttempts: cfg.TaskMaxAttempts,

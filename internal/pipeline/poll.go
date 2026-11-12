@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Lazzar19/ScoutAI/internal/domain"
+	"github.com/Lazzar19/ScoutAI/internal/match"
 	"github.com/Lazzar19/ScoutAI/internal/source"
 	"github.com/Lazzar19/ScoutAI/internal/worker"
 )
@@ -21,9 +22,17 @@ type PollStore interface {
 	MarkSourceSnapshot(ctx context.Context, sourceID string, at time.Time) error
 }
 
-// Handler claims poll tasks for Greenhouse and leaves match tasks for the rules milestone.
-// The fetch runs in the handler, after the claim transaction has committed.
-func Handler(db PollStore, boards source.Greenhouse, logger *slog.Logger) worker.Handler {
+// TaskStore is the database access for polling a board and scoring a match task.
+type TaskStore interface {
+	PollStore
+	GetJob(ctx context.Context, id string) (domain.Job, error)
+	GetProfileByVersion(ctx context.Context, version int) (domain.CandidateProfile, error)
+	SaveDecision(ctx context.Context, evaluation *domain.JobEvaluation, notify *domain.Notification) error
+}
+
+// Handler polls Greenhouse boards and scores match tasks.
+// The fetch and the score run after the claim transaction has committed.
+func Handler(db TaskStore, boards source.Greenhouse, rules match.Rules, recipient string, logger *slog.Logger) worker.Handler {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -32,8 +41,7 @@ func Handler(db PollStore, boards source.Greenhouse, logger *slog.Logger) worker
 		case domain.TaskPoll:
 			return runPoll(ctx, db, boards, logger, task)
 		case domain.TaskMatch:
-			logger.Info("match task waiting for rules", "task_id", task.ID)
-			return nil
+			return runMatch(ctx, db, rules, recipient, logger, task)
 		default:
 			return fmt.Errorf("unknown task type %s", task.Type)
 		}
