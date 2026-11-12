@@ -20,26 +20,40 @@ const (
 	defaultGreenhouseEvery   = time.Hour
 	defaultGreenhouseJitter  = 10 * time.Minute
 	defaultGreenhouseBaseURL = "https://boards-api.greenhouse.io"
+	defaultMatchRole         = 30
+	defaultMatchSkills       = 30
+	defaultMatchExperience   = 20
+	defaultMatchLocation     = 10
+	defaultMatchCompany      = 10
+	defaultMatchThreshold    = 70
+	defaultNotifyRecipient   = "candidate"
 )
 
 // Config is the process configuration. Only DatabaseURL is required.
 // Telegram, mailbox, and model credentials stay empty until those features are enabled.
 // Worker settings have defaults so the queue can run before those features exist.
 type Config struct {
-	DatabaseURL        string
-	HTTPAddr           string
-	TelegramToken      string
-	MailboxURL         string
-	LLMAPIKey          string
-	WorkerCount        int
-	TaskTimeout        time.Duration
-	TaskMaxAttempts    int
-	WorkerPoll         time.Duration
-	TaskRetryBase      time.Duration
-	GreenhouseInterval time.Duration
-	GreenhouseJitter   time.Duration
-	GreenhouseBaseURL  string
-	Sources            []ConfiguredSource
+	DatabaseURL           string
+	HTTPAddr              string
+	TelegramToken         string
+	MailboxURL            string
+	LLMAPIKey             string
+	WorkerCount           int
+	TaskTimeout           time.Duration
+	TaskMaxAttempts       int
+	WorkerPoll            time.Duration
+	TaskRetryBase         time.Duration
+	GreenhouseInterval    time.Duration
+	GreenhouseJitter      time.Duration
+	GreenhouseBaseURL     string
+	Sources               []ConfiguredSource
+	MatchWeightRole       int
+	MatchWeightSkills     int
+	MatchWeightExperience int
+	MatchWeightLocation   int
+	MatchWeightCompany    int
+	MatchThreshold        int
+	NotifyRecipient       string
 }
 
 // ConfiguredSource is one board or mailbox from the SOURCES environment value.
@@ -104,22 +118,57 @@ func Load() (Config, error) {
 	if baseURL == "" {
 		baseURL = defaultGreenhouseBaseURL
 	}
+	roleWeight, err := envNonNegativeInt("MATCH_WEIGHT_ROLE", defaultMatchRole)
+	if err != nil {
+		return Config{}, err
+	}
+	skillsWeight, err := envNonNegativeInt("MATCH_WEIGHT_SKILLS", defaultMatchSkills)
+	if err != nil {
+		return Config{}, err
+	}
+	experienceWeight, err := envNonNegativeInt("MATCH_WEIGHT_EXPERIENCE", defaultMatchExperience)
+	if err != nil {
+		return Config{}, err
+	}
+	locationWeight, err := envNonNegativeInt("MATCH_WEIGHT_LOCATION", defaultMatchLocation)
+	if err != nil {
+		return Config{}, err
+	}
+	companyWeight, err := envNonNegativeInt("MATCH_WEIGHT_COMPANY", defaultMatchCompany)
+	if err != nil {
+		return Config{}, err
+	}
+	threshold, err := envNonNegativeInt("MATCH_THRESHOLD", defaultMatchThreshold)
+	if err != nil {
+		return Config{}, err
+	}
+	recipient := strings.TrimSpace(os.Getenv("TELEGRAM_USER_ID"))
+	if recipient == "" {
+		recipient = defaultNotifyRecipient
+	}
 
 	return Config{
-		DatabaseURL:        databaseURL,
-		HTTPAddr:           net.JoinHostPort("0.0.0.0", port),
-		TelegramToken:      strings.TrimSpace(os.Getenv("TELEGRAM_TOKEN")),
-		MailboxURL:         strings.TrimSpace(os.Getenv("MAILBOX_URL")),
-		LLMAPIKey:          strings.TrimSpace(os.Getenv("LLM_API_KEY")),
-		WorkerCount:        workerCount,
-		TaskTimeout:        taskTimeout,
-		TaskMaxAttempts:    maxAttempts,
-		WorkerPoll:         workerPoll,
-		TaskRetryBase:      retryBase,
-		GreenhouseInterval: greenhouseEvery,
-		GreenhouseJitter:   greenhouseJitter,
-		GreenhouseBaseURL:  baseURL,
-		Sources:            sources,
+		DatabaseURL:           databaseURL,
+		HTTPAddr:              net.JoinHostPort("0.0.0.0", port),
+		TelegramToken:         strings.TrimSpace(os.Getenv("TELEGRAM_TOKEN")),
+		MailboxURL:            strings.TrimSpace(os.Getenv("MAILBOX_URL")),
+		LLMAPIKey:             strings.TrimSpace(os.Getenv("LLM_API_KEY")),
+		WorkerCount:           workerCount,
+		TaskTimeout:           taskTimeout,
+		TaskMaxAttempts:       maxAttempts,
+		WorkerPoll:            workerPoll,
+		TaskRetryBase:         retryBase,
+		GreenhouseInterval:    greenhouseEvery,
+		GreenhouseJitter:      greenhouseJitter,
+		GreenhouseBaseURL:     baseURL,
+		Sources:               sources,
+		MatchWeightRole:       roleWeight,
+		MatchWeightSkills:     skillsWeight,
+		MatchWeightExperience: experienceWeight,
+		MatchWeightLocation:   locationWeight,
+		MatchWeightCompany:    companyWeight,
+		MatchThreshold:        threshold,
+		NotifyRecipient:       recipient,
 	}, nil
 }
 
@@ -171,12 +220,23 @@ func parseSources(raw string) ([]ConfiguredSource, error) {
 }
 
 func envPositiveInt(key string, fallback int) (int, error) {
+	return envInt(key, fallback, false)
+}
+
+func envNonNegativeInt(key string, fallback int) (int, error) {
+	return envInt(key, fallback, true)
+}
+
+func envInt(key string, fallback int, allowZero bool) (int, error) {
 	raw := strings.TrimSpace(os.Getenv(key))
 	if raw == "" {
 		return fallback, nil
 	}
 	n, err := strconv.Atoi(raw)
-	if err != nil || n < 1 {
+	if err != nil || n < 0 || (n == 0 && !allowZero) {
+		if allowZero {
+			return 0, fmt.Errorf("%s must be a non-negative integer", key)
+		}
 		return 0, fmt.Errorf("%s must be a positive integer", key)
 	}
 	return n, nil

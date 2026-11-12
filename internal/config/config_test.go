@@ -30,6 +30,13 @@ func TestLoadAllowsMissingFeatureSecrets(t *testing.T) {
 	t.Setenv("GREENHOUSE_JITTER", "")
 	t.Setenv("GREENHOUSE_API_BASE", "")
 	t.Setenv("SOURCES", "")
+	t.Setenv("MATCH_WEIGHT_ROLE", "")
+	t.Setenv("MATCH_WEIGHT_SKILLS", "")
+	t.Setenv("MATCH_WEIGHT_EXPERIENCE", "")
+	t.Setenv("MATCH_WEIGHT_LOCATION", "")
+	t.Setenv("MATCH_WEIGHT_COMPANY", "")
+	t.Setenv("MATCH_THRESHOLD", "")
+	t.Setenv("TELEGRAM_USER_ID", "")
 
 	cfg, err := Load()
 	if err != nil {
@@ -53,6 +60,15 @@ func TestLoadAllowsMissingFeatureSecrets(t *testing.T) {
 	if len(cfg.Sources) != 0 || cfg.GreenhouseBaseURL != defaultGreenhouseBaseURL {
 		t.Fatalf("sources = %+v base = %s", cfg.Sources, cfg.GreenhouseBaseURL)
 	}
+	if cfg.MatchWeightRole != defaultMatchRole || cfg.MatchWeightSkills != defaultMatchSkills || cfg.MatchWeightExperience != defaultMatchExperience {
+		t.Fatalf("match weights = %d %d %d", cfg.MatchWeightRole, cfg.MatchWeightSkills, cfg.MatchWeightExperience)
+	}
+	if cfg.MatchWeightLocation != defaultMatchLocation || cfg.MatchWeightCompany != defaultMatchCompany || cfg.MatchThreshold != defaultMatchThreshold {
+		t.Fatalf("match location = %d company = %d threshold = %d", cfg.MatchWeightLocation, cfg.MatchWeightCompany, cfg.MatchThreshold)
+	}
+	if cfg.NotifyRecipient != defaultNotifyRecipient {
+		t.Fatalf("recipient = %q", cfg.NotifyRecipient)
+	}
 }
 
 func TestLoadParsesGreenhouseSources(t *testing.T) {
@@ -71,6 +87,31 @@ func TestLoadParsesGreenhouseSources(t *testing.T) {
 	t.Setenv("SOURCES", `[{"name":"greenhouse-example","type":"greenhouse"}]`)
 	if _, err := Load(); err == nil {
 		t.Fatal("Load() error = nil, want a missing board token error")
+	}
+}
+
+func TestLoadParsesMatchSettings(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://scout:scout@127.0.0.1:5432/scout?sslmode=disable")
+	t.Setenv("PORT", "")
+	t.Setenv("MATCH_WEIGHT_ROLE", "40")
+	t.Setenv("MATCH_WEIGHT_SKILLS", "20")
+	t.Setenv("MATCH_WEIGHT_EXPERIENCE", "20")
+	t.Setenv("MATCH_WEIGHT_LOCATION", "10")
+	t.Setenv("MATCH_WEIGHT_COMPANY", "10")
+	t.Setenv("MATCH_THRESHOLD", "80")
+	t.Setenv("TELEGRAM_USER_ID", "42")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.MatchWeightRole != 40 || cfg.MatchThreshold != 80 || cfg.NotifyRecipient != "42" {
+		t.Fatalf("match = role %d threshold %d recipient %s", cfg.MatchWeightRole, cfg.MatchThreshold, cfg.NotifyRecipient)
+	}
+
+	t.Setenv("MATCH_THRESHOLD", "-1")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() error = nil, want an invalid threshold error")
 	}
 }
 
