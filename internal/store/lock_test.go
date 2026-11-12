@@ -10,8 +10,8 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-// queueTestLock is shared with the worker tests. Both packages use one database,
-// and a session lock keeps a claim in one package from taking the other's task.
+// queueTestLock is shared with the worker, pipeline, and schedule tests.
+// A session lock keeps a claim in one package from taking another's task.
 const queueTestLock int64 = 74821102
 
 func TestMain(m *testing.M) {
