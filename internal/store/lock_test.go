@@ -10,7 +10,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-// queueTestLock is shared with the worker, pipeline, and schedule tests.
+// queueTestLock is shared with the worker, pipeline, schedule, and notify tests.
 // A session lock keeps a claim in one package from taking another's task.
 const queueTestLock int64 = 74821102
 
