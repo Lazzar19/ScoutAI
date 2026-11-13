@@ -127,7 +127,7 @@ func canonicalURL(raw string) (string, error) {
 func trackingParam(key string) bool {
 	lower := strings.ToLower(key)
 	switch lower {
-	case "gh_src", "fbclid", "gclid", "mc_eid", "mc_cid":
+	case "gh_src", "fbclid", "gclid", "mc_eid", "mc_cid", "trk", "trackingid", "refid", "trkemail", "lipi":
 		return true
 	default:
 		return strings.HasPrefix(lower, "utm_")

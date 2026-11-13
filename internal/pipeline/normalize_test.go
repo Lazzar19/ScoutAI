@@ -11,4 +11,13 @@ func TestCanonicalURLStripsTracking(t *testing.T) {
 	if got != want {
 		t.Fatalf("canonicalURL() = %s, want %s", got, want)
 	}
+
+	got, err = canonicalURL("https://www.linkedin.com/comm/jobs/view/3988776655?trk=eml&trackingId=ABC&refId=DEF&utm_source=alert")
+	if err != nil {
+		t.Fatalf("canonicalURL() error = %v", err)
+	}
+	want = "https://www.linkedin.com/comm/jobs/view/3988776655"
+	if got != want {
+		t.Fatalf("canonicalURL() = %s, want %s", got, want)
+	}
 }

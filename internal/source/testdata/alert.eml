@@ -1,0 +1,42 @@
+From: LinkedIn Job Alerts <jobalerts-noreply@linkedin.com>
+To: student@example.com
+Subject: Your job alert for backend intern
+Date: Fri, 13 Nov 2026 09:00:00 +0000
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="boundary42"
+
+--boundary42
+Content-Type: text/plain; charset="UTF-8"
+
+Your job alert for backend intern
+----------------------------------------
+
+Backend Intern
+Acme
+Belgrade, Serbia (Hybrid)
+This company is actively hiring
+2 connections
+View job: https://www.linkedin.com/comm/jobs/view/3988776655?trk=eml-email_job_alert_digest_01-job~card-0-jobcard_body&refId=AAA&trackingId=BBB&utm_source=job_alert
+
+----------------------------------------
+
+Platform Intern
+Northwind
+Remote
+View job: https://www.linkedin.com/comm/jobs/view/3988777001?trk=eml-email_job_alert_digest_01-job~card-1-jobcard_body&refId=AAA&trackingId=CCC
+
+See all jobs: https://www.linkedin.com/jobs/search/?currentJobId=3988776655&trk=eml-email_job_alert
+
+--boundary42
+Content-Type: text/html; charset="UTF-8"
+
+<html><body>
+<p>Your job alert for backend intern</p>
+<a href="https://www.linkedin.com/comm/jobs/view/3988776655?trk=eml-email_job_alert_digest_01-job~card-0-jobcard_body&amp;refId=AAA&amp;trackingId=BBB&amp;utm_source=job_alert">Backend Intern</a>
+<p>Acme · Belgrade, Serbia (Hybrid)</p>
+<p>Build services in Go.</p>
+<a href="https://www.linkedin.com/comm/jobs/view/3988777001?trk=eml-email_job_alert_digest_01-job~card-1-jobcard_body&amp;refId=AAA&amp;trackingId=CCC">Platform Intern</a>
+<p>Northwind · Remote</p>
+<a href="https://www.linkedin.com/jobs/search/?currentJobId=3988776655&amp;trk=eml">See all jobs</a>
+</body></html>
+--boundary42--
