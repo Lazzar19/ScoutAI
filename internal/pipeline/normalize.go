@@ -134,6 +134,11 @@ func trackingParam(key string) bool {
 	}
 }
 
+// ContentHash is the cache key for the normalized posting fields.
+func ContentHash(job domain.Job) (string, error) {
+	return contentHash(job)
+}
+
 func contentHash(job domain.Job) (string, error) {
 	payload := struct {
 		Title          string         `json:"title"`
