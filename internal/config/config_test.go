@@ -37,6 +37,9 @@ func TestLoadAllowsMissingFeatureSecrets(t *testing.T) {
 	t.Setenv("MATCH_WEIGHT_COMPANY", "")
 	t.Setenv("MATCH_THRESHOLD", "")
 	t.Setenv("TELEGRAM_USER_ID", "")
+	t.Setenv("NOTIFY_PREVIEW", "")
+	t.Setenv("NOTIFY_EVALUATED", "")
+	t.Setenv("TELEGRAM_API_BASE", "")
 
 	cfg, err := Load()
 	if err != nil {
@@ -68,6 +71,9 @@ func TestLoadAllowsMissingFeatureSecrets(t *testing.T) {
 	}
 	if cfg.NotifyRecipient != defaultNotifyRecipient {
 		t.Fatalf("recipient = %q", cfg.NotifyRecipient)
+	}
+	if !cfg.NotifyPreview || !cfg.NotifyEvaluated || cfg.TelegramAPIBase != "https://api.telegram.org" {
+		t.Fatalf("telegram = preview %v evaluated %v base %s", cfg.NotifyPreview, cfg.NotifyEvaluated, cfg.TelegramAPIBase)
 	}
 }
 
@@ -112,6 +118,30 @@ func TestLoadParsesMatchSettings(t *testing.T) {
 	t.Setenv("MATCH_THRESHOLD", "-1")
 	if _, err := Load(); err == nil {
 		t.Fatal("Load() error = nil, want an invalid threshold error")
+	}
+}
+
+func TestLoadRequiresTheTelegramUserWhenTheBotIsEnabled(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://scout:scout@127.0.0.1:5432/scout?sslmode=disable")
+	t.Setenv("PORT", "")
+	t.Setenv("TELEGRAM_TOKEN", "secret")
+	t.Setenv("TELEGRAM_USER_ID", "")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() error = nil, want a missing TELEGRAM_USER_ID error")
+	}
+
+	t.Setenv("TELEGRAM_USER_ID", "42")
+	t.Setenv("NOTIFY_PREVIEW", "false")
+	t.Setenv("TELEGRAM_API_BASE", "http://127.0.0.1:9")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.TelegramToken != "secret" || cfg.NotifyRecipient != "42" || cfg.NotifyPreview || !cfg.NotifyEvaluated {
+		t.Fatalf("telegram = %+v", cfg)
+	}
+	if cfg.TelegramAPIBase != "http://127.0.0.1:9" {
+		t.Fatalf("base = %s", cfg.TelegramAPIBase)
 	}
 }
 

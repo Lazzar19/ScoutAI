@@ -15,6 +15,7 @@ import (
 	"github.com/Lazzar19/ScoutAI/internal/domain"
 	"github.com/Lazzar19/ScoutAI/internal/health"
 	"github.com/Lazzar19/ScoutAI/internal/match"
+	"github.com/Lazzar19/ScoutAI/internal/notify"
 	"github.com/Lazzar19/ScoutAI/internal/pipeline"
 	"github.com/Lazzar19/ScoutAI/internal/schedule"
 	"github.com/Lazzar19/ScoutAI/internal/source"
@@ -104,6 +105,25 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 				logger.Error("worker stopped", "worker", id, "err", err)
 			}
 		}(i)
+	}
+
+	if cfg.TelegramToken != "" {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := (&notify.Bot{
+				Token:     cfg.TelegramToken,
+				UserID:    cfg.NotifyRecipient,
+				BaseURL:   cfg.TelegramAPIBase,
+				Store:     pool,
+				Preview:   cfg.NotifyPreview,
+				Evaluated: cfg.NotifyEvaluated,
+				Logger:    logger,
+			}).Run(workerCtx)
+			if err != nil && workerCtx.Err() == nil {
+				logger.Error("telegram stopped", "err", err)
+			}
+		}()
 	}
 
 	server := &http.Server{

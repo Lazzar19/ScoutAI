@@ -54,6 +54,9 @@ type Config struct {
 	MatchWeightCompany    int
 	MatchThreshold        int
 	NotifyRecipient       string
+	NotifyPreview         bool
+	NotifyEvaluated       bool
+	TelegramAPIBase       string
 }
 
 // ConfiguredSource is one board or mailbox from the SOURCES environment value.
@@ -142,15 +145,32 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	recipient := strings.TrimSpace(os.Getenv("TELEGRAM_USER_ID"))
+	token := strings.TrimSpace(os.Getenv("TELEGRAM_TOKEN"))
+	userID := strings.TrimSpace(os.Getenv("TELEGRAM_USER_ID"))
+	if token != "" && userID == "" {
+		return Config{}, fmt.Errorf("TELEGRAM_USER_ID is required when TELEGRAM_TOKEN is set")
+	}
+	recipient := userID
 	if recipient == "" {
 		recipient = defaultNotifyRecipient
+	}
+	notifyPreview, err := envBool("NOTIFY_PREVIEW", true)
+	if err != nil {
+		return Config{}, err
+	}
+	notifyEvaluated, err := envBool("NOTIFY_EVALUATED", true)
+	if err != nil {
+		return Config{}, err
+	}
+	telegramBase := strings.TrimRight(strings.TrimSpace(os.Getenv("TELEGRAM_API_BASE")), "/")
+	if telegramBase == "" {
+		telegramBase = "https://api.telegram.org"
 	}
 
 	return Config{
 		DatabaseURL:           databaseURL,
 		HTTPAddr:              net.JoinHostPort("0.0.0.0", port),
-		TelegramToken:         strings.TrimSpace(os.Getenv("TELEGRAM_TOKEN")),
+		TelegramToken:         token,
 		MailboxURL:            strings.TrimSpace(os.Getenv("MAILBOX_URL")),
 		LLMAPIKey:             strings.TrimSpace(os.Getenv("LLM_API_KEY")),
 		WorkerCount:           workerCount,
@@ -169,6 +189,9 @@ func Load() (Config, error) {
 		MatchWeightCompany:    companyWeight,
 		MatchThreshold:        threshold,
 		NotifyRecipient:       recipient,
+		NotifyPreview:         notifyPreview,
+		NotifyEvaluated:       notifyEvaluated,
+		TelegramAPIBase:       telegramBase,
 	}, nil
 }
 
@@ -240,6 +263,21 @@ func envInt(key string, fallback int, allowZero bool) (int, error) {
 		return 0, fmt.Errorf("%s must be a positive integer", key)
 	}
 	return n, nil
+}
+
+func envBool(key string, fallback bool) (bool, error) {
+	raw := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
+	if raw == "" {
+		return fallback, nil
+	}
+	switch raw {
+	case "1", "true", "yes", "y":
+		return true, nil
+	case "0", "false", "no", "n":
+		return false, nil
+	default:
+		return false, fmt.Errorf("%s must be true or false", key)
+	}
 }
 
 func envPositiveDuration(key string, fallback time.Duration) (time.Duration, error) {
